@@ -21,12 +21,8 @@ if !isdirectory(g:evervim_workdir)
     call mkdir(g:evervim_workdir, 'p')
 endif
 
-if !exists('g:evervim_username')
-    let g:evervim_username = ''
-endif
-
-if !exists('g:evervim_password')
-    let g:evervim_password = ''
+if !exists('g:evervim_developertoken')
+    let g:evervim_developertoken= ''
 endif
 
 if !exists('g:evervim_sortnotebooks') " (name|serviceCreated|serviceUpdated) (asc|desc)
@@ -76,46 +72,13 @@ function! s:setCommand() " {{{
 endfunction
 "}}}
 
-function! s:loadAccount() " {{{
-    let accountfile = g:evervim_workdir . '/evervim_account.txt'
-    if !filereadable(accountfile)
-        return
-    else
-        let account = readfile(accountfile)
-        let g:evervim_username = account[0]
-        let g:evervim_password = s:rot13(account[1])
-    endif
-endfunction
-"command! EvervimmerLoadAccount call s:loadAccount()
-"}}}
-
 function! s:logincheck() " {{{
     call evervim#logincheck()
 endfunction
 "}}}
 
-function! s:setusername() " {{{
-    let g:evervim_username = input('evernote username : ')
-endfunction
-"}}}
-
-function! s:setpassword() " {{{
-    let g:evervim_password = input('evernote password : ')
-endfunction
-"}}}
-
 function! s:setPref() " {{{
     call evervim#setPref()
-endfunction
-"}}}
-
-function! s:setup() " {{{
-    call s:setusername()
-    call s:setpassword()
-    echo 'login check...'
-    if evervim#setup() == '1'
-        call s:setCommand()
-    endif
 endfunction
 "}}}
 
@@ -197,10 +160,6 @@ endfunction
 " ---------------------------------------------------------------------------
 " setup
 " ---------------------------------------------------------------------------
-command! EvervimSetup call s:setup()
-call s:loadAccount()
-if g:evervim_password != ''
-    call s:setCommand()
-endif
+call s:setCommand()
 
 " vim: sts=4 sw=4 fdm=marker

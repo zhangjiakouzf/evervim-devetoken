@@ -22,12 +22,12 @@ class TestEvernoteAPI(unittest.TestCase):
     """ doc """
 
     def setUp(self):  # {{{
-        self.api = EvernoteAPI(USERNAME, PASSWORD)
+        self.api = EvernoteAPI()
     #}}}
 
     def testAuth(self):  # {{{
         """ test auth """
-        self.api = EvernoteAPI(USERNAME, PASSWORD)
+        self.api = EvernoteAPI()
         self.api.auth()
         self.assertIsNotNone(self.api.user)
         self.assertIsNotNone(self.api.refreshAuthDataTime)
@@ -35,7 +35,7 @@ class TestEvernoteAPI(unittest.TestCase):
     #}}}
 
     def testRefreshAuth(self):  # {{{
-        self.api = EvernoteAPI(USERNAME, PASSWORD)
+        self.api = EvernoteAPI()
         self.api.auth()
         token               = self.api.authToken
         refreshAuthDataTime = self.api.refreshAuthDataTime
@@ -47,13 +47,13 @@ class TestEvernoteAPI(unittest.TestCase):
     #}}}
 
     def testAuthFairueByUsername(self):  # {{{
-        api = EvernoteAPI('wrong_user_name_xxxxxxxx', PASSWORD)
+        api = EvernoteAPI()
         self.assertRaises(StandardError, lambda: {api.auth()})
 
     #}}}
 
     def testAuthFairueByPassword(self):  # {{{
-        api = EvernoteAPI(USERNAME, 'wrong_user_name_xxxxxxxx')
+        api = EvernoteAPI()
         self.assertRaises(StandardError, lambda: {api.auth()})
     #}}}
 

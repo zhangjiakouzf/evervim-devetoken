@@ -4,20 +4,20 @@
 # License: MIT
 #### import
 # {{{
+import pdb
 import sys
 import os
 sys.path.append(os.path.join(os.path.dirname(__file__), 'lib/'))
 import time
 from datetime import datetime, timedelta
 
-import thrift.protocol.TBinaryProtocol as TBinaryProtocol
-import thrift.transport.THttpClient as THttpClient
 import evernote.edam.userstore.UserStore as UserStore
 import evernote.edam.userstore.constants as UserStoreConstants
 import evernote.edam.notestore.NoteStore as NoteStore
 import evernote.edam.type.ttypes as Types
 import evernote.edam.error.ttypes as Errors
 import evernote.edam.limits.constants as LimitConstants
+from evernote.api.client import EvernoteClient
 # }}}
 
 
@@ -31,11 +31,10 @@ class EvernoteAPI(object):
     #}}}
 #### constractuor.
 
-    def __init__(self, username, password):  # {{{
+    def __init__(self, evernote_host, auth_token):  # {{{
         """ initialize """
-        self.username = username
-        self.password = password
-
+	self.evernoteHost = evernote_host
+	self.authToken = auth_token
         self.__setUserStore()
         self.__versioncheck()
     #}}}
@@ -86,10 +85,10 @@ class EvernoteAPI(object):
         """ return note include content and tagNames  """
         authToken = self.__getAuthToken()
         returnNote = self.__getNoteStore().getNote(authToken, note.guid,
-                                                     withContent=True,
-                                                     withResourcesData=False,
-                                                     withResourcesRecognition=False,
-                                                     withResourcesAlternateData=False)
+                                                     True,
+                                                     False,
+                                                     False,
+                                                     False)
         returnNote.tagNames = self.__getNoteStore().getNoteTagNames(authToken, note.guid)
         return returnNote
     #}}}
@@ -105,7 +104,7 @@ class EvernoteAPI(object):
         offset = page * EvernoteAPI.PAGEMAX
 
         authToken = self.__getAuthToken()
-        noteList = self.__getNoteStore().findNotes(authToken, noteFilter, offset=offset, maxNotes=EvernoteAPI.MAXNOTES)
+        noteList = self.__getNoteStore().findNotes(authToken, noteFilter, offset, EvernoteAPI.MAXNOTES)
         return self.__NoteList2EvernoteList(noteList)
     #}}}
 
@@ -117,7 +116,7 @@ class EvernoteAPI(object):
         offset = page * EvernoteAPI.PAGEMAX
 
         authToken = self.__getAuthToken()
-        noteList = self.__getNoteStore().findNotes(authToken, noteFilter, offset=offset, maxNotes=EvernoteAPI.MAXNOTES)
+        noteList = self.__getNoteStore().findNotes(noteFilter, offset, EvernoteAPI.MAXNOTES)
         return self.__NoteList2EvernoteList(noteList)
     #}}}
 
@@ -129,7 +128,7 @@ class EvernoteAPI(object):
         offset = page * EvernoteAPI.PAGEMAX
 
         authToken = self.__getAuthToken()
-        noteList = self.__getNoteStore().findNotes(authToken, noteFilter, offset=offset, maxNotes=EvernoteAPI.MAXNOTES)
+        noteList = self.__getNoteStore().findNotes(authToken, noteFilter, offset, EvernoteAPI.MAXNOTES)
         return self.__NoteList2EvernoteList(noteList)
     #}}}
 
@@ -152,43 +151,38 @@ class EvernoteAPI(object):
 
     def auth(self):  # {{{
         """ Authentication & set result to self.user and self.authToken """
+	authToken = self.authToken
+	evernote_host = self.evernoteHost
         try:
-            authResult = self.userStore.authenticate(self.username, self.password,
-                            CONSUMER_KEY, CONSUMER_SECRET)
+	    # client = EvernoteClient(token=authToken, sandbox=True)
+	    client = EvernoteClient(service_host=evernote_host, token=authToken, sandbox=False)
         except Errors.EDAMUserException, e:
-            if e.parameter == "username":
-                    raise StandardError("wrong username. username=%s" % self.username)
-            if e.parameter == "password":
-                    raise StandardError("password is incorrect.")
-            raise StandardError("unknown errors.")
-
+            raise StandardError("unknown errors.%s",e)
+	# pdb.set_trace()
+	self.userStore = client.get_user_store()
+	self.noteStore = client.get_note_store()
         # set the auth result.
-        self.user = authResult.user
-        self.authToken = authResult.authenticationToken
         # authResult.expiration && currenttime is msec
-        self.__setAuthExpiration(authResult)
+        # self.__setAuthExpiration(authResult)
     #}}}
 
     def refreshAuth(self):  # {{{
-        refreshedAuth = self.userStore.refreshAuthentication(self.authToken)
-        self.authToken = refreshedAuth.authenticationToken
-        self.__setAuthExpiration(refreshedAuth)
+	self.auth()
     #}}}
 
 #### private methods.
-    def __setAuthExpiration(self, auth):  # {{{
-        now = datetime.now()
-        # authResult.expiration && currenttime is msec
-        authlimitsec = (auth.expiration  -  auth.currentTime) / 1000
-        self.refreshAuthDataTime = now + timedelta(seconds=authlimitsec * AUTH_REFRESH_LATE)
-        self.expirationDataTime = now + timedelta(seconds=authlimitsec)
-    #}}}
+    # def __setAuthExpiration(self, auth):  # {{{
+    #     now = datetime.now()
+    #     # authResult.expiration && currenttime is msec
+    #     authlimitsec = (auth.expiration  -  auth.currentTime) / 1000
+    #     self.refreshAuthDataTime = now + timedelta(seconds=authlimitsec * AUTH_REFRESH_LATE)
+    #     self.expirationDataTime = now + timedelta(seconds=authlimitsec)
+    # #}}}
 
     def __setUserStore(self):  # {{{
         """ setup userStore. """
-        userStoreHttpClient = THttpClient.THttpClient(USERSTORE_URI)
-        userStoreProtocol = TBinaryProtocol.TBinaryProtocol(userStoreHttpClient)
-        self.userStore = UserStore.Client(userStoreProtocol)
+	if not hasattr( self, 'userStore' ):
+	    self.auth()
     #}}}
 
     def __versioncheck(self):  # {{{
@@ -205,32 +199,20 @@ class EvernoteAPI(object):
         if not hasattr(self, 'authToken'):
             self.auth()
 
-        now = datetime.now()
-        if now > self.expirationDataTime:
-            #  auth runout
-            self.auth()
-        elif now > self.refreshAuthDataTime:
-            self.refreshAuth()
-
+        # now = datetime.now()
+        # if now > self.expirationDataTime:
+        #     #  auth runout
+        #     self.auth()
+        # elif now > self.refreshAuthDataTime:
+        #     self.refreshAuth()
+        #
         return self.authToken
-    #}}}
-
-    def __getUser(self):  # {{{
-        """ get user.  """
-        if not hasattr(self, 'user'):
-            self.auth()
-
-        return self.user
     #}}}
 
     def __getNoteStore(self):  # {{{
         """ get NoteStore.  """
         if not hasattr(self, 'noteStore'):
-            noteStoreUri = NOTESTORE_URIBASE + self.__getUser().shardId
-            noteStoreHttpClient = THttpClient.THttpClient(noteStoreUri)
-            noteStoreProtocol = TBinaryProtocol.TBinaryProtocol(noteStoreHttpClient)
-            self.noteStore = NoteStore.Client(noteStoreProtocol)
-
+	    self.auth()
         return self.noteStore
     #}}}
 
@@ -261,16 +243,12 @@ class EvernoteList(object):
 
 #### CONSTANT
 # {{{
-CONSUMER_KEY = 'kakkyz2'
-CONSUMER_SECRET = '960305afca85b6b0'
+# EVERNOTE_HOST = "www.yinxiang.com"
+# EVERNOTE_HOST = "app.yinxiang.com"
+# AUTH_TOKEN = "S=s1:U=8e4b3:E=14c86d76c98:C=1452f26409a:P=1cd:A=en-devtoken:V=2:H=f2285649955bf94407bf454d98569085"
+# AUTH_TOKEN='S=s130:U=e03b96:E=14c86b01d4b:C=1452efef14b:P=1cd:A=en-devtoken:V=2:H=35301823a5bafd1aa1dbe0b860273c17'
+# AUTH_TOKEN='S=s3:U=18d632:E=14c88eba875:C=145313a7c77:P=1cd:A=en-devtoken:V=2:H=7651da594e6bac2d542c03f5194ccb4f'
 
-#EVERNOTE_HOST = "sandbox.evernote.com"
-EVERNOTE_HOST = "www.evernote.com"
-USERSTORE_URI = "https://" + EVERNOTE_HOST + "/edam/user"
-CONSUMER_SECRET = '960305afca85b6b0'
-
-NOTESTORE_URIBASE = "https://" + EVERNOTE_HOST + "/edam/note/"
-
-AUTH_REFRESH_LATE = 0.6
+# AUTH_REFRESH_LATE = 0.6
 # }}}
 #  ---------------------------------------- eof ----------------------------------------
