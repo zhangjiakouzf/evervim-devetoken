@@ -241,14 +241,4 @@ class EvernoteList(object):
         self.maxpages = None
         self.currentpage = None
 
-#### CONSTANT
-# {{{
-# EVERNOTE_HOST = "www.yinxiang.com"
-# EVERNOTE_HOST = "app.yinxiang.com"
-# AUTH_TOKEN = "S=s1:U=8e4b3:E=14c86d76c98:C=1452f26409a:P=1cd:A=en-devtoken:V=2:H=f2285649955bf94407bf454d98569085"
-# AUTH_TOKEN='S=s130:U=e03b96:E=14c86b01d4b:C=1452efef14b:P=1cd:A=en-devtoken:V=2:H=35301823a5bafd1aa1dbe0b860273c17'
-# AUTH_TOKEN='S=s3:U=18d632:E=14c88eba875:C=145313a7c77:P=1cd:A=en-devtoken:V=2:H=7651da594e6bac2d542c03f5194ccb4f'
-
-# AUTH_REFRESH_LATE = 0.6
-# }}}
 #  ---------------------------------------- eof ----------------------------------------
